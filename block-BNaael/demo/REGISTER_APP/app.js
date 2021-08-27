@@ -8,6 +8,7 @@ var session = require('express-session');
 var MongoStore = require('connect-mongo');
 var flash = require('connect-flash');
 var User = require('./model/usersModel');
+var auth = require('./middlewares/auth');
 require('dotenv').config();
 mongoose.connect(
   'mongodb://localhost/newRegister',
@@ -49,6 +50,7 @@ app.use(
 );
 
 app.use('/api/', indexRouter);
+
 app.use('/api/users', usersRouter);
 
 // catch 404 and forward to error handler

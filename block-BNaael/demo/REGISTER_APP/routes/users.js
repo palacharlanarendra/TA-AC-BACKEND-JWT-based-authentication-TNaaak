@@ -1,17 +1,18 @@
 var express = require('express');
 var router = express.Router();
 var User = require('../model/usersModel');
-
-router.post('/register', async (req, res, next) => {
+var auth = require('../middlewares/auth');
+router.post('/register', auth.verifyToken, async (req, res, next) => {
   try {
     var user = await User.create(req.body);
-    res.status(201).json({ user });
+    var token = await user.signToken();
+    res.status(200).json({ user: user.userJSON(token) });
   } catch (error) {
     next(error);
   }
 });
 
-router.post('/login', async (req, res, next) => {
+router.post('/login', auth.verifyToken, async (req, res, next) => {
   var { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ error: 'Email/password required' });
@@ -25,7 +26,9 @@ router.post('/login', async (req, res, next) => {
     if (!result) {
       return res.status(400).json({ error: 'Invalid password' });
     }
-    return res.status(200).send('user loggedin');
+    var token = await user.signToken();
+    console.log(token);
+    res.json({ user: user.userJSON(token) });
   } catch (error) {
     next(error);
   }
