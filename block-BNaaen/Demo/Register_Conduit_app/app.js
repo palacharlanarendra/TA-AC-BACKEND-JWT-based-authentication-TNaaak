@@ -4,7 +4,7 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 var mongoose = require('mongoose');
-
+require('dotenv').config();
 mongoose.connect(
   ' mongodb://127.0.0.1:27017/conduitapp',
   { useNewUrlParser: true, useUnifiedTopology: true },

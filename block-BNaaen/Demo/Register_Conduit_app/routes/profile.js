@@ -2,10 +2,10 @@ let express = require('express');
 let router = express.Router();
 let User = require('../models/usersModel');
 let auth = require('../middleware/auth');
-
+router.use(auth.verifyToken);
 //Get Profile
-router.get('/:username', auth.verifyToken, async (req, res, next) => {
-  let id = req.user ? req.user.userId : false;
+router.get('/:username', async (req, res, next) => {
+  let id = req.user.userId;
   let username = req.params.username;
   try {
     let user = await User.findOne({ username });
@@ -20,8 +20,6 @@ router.get('/:username', auth.verifyToken, async (req, res, next) => {
     next(error);
   }
 });
-
-router.use(auth.verifyToken);
 
 //Follow user
 router.post('/:username/follow', async (req, res, next) => {

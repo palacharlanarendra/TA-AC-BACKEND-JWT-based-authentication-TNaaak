@@ -4,8 +4,6 @@ let Schema = mongoose.Schema;
 let bcrypt = require('bcrypt');
 let jwt = require('jsonwebtoken');
 
-require('dotenv').config();
-
 let userSchema = new Schema(
   {
     username: { type: String, required: true, unique: true },

@@ -20,8 +20,8 @@ router.post('/', auth.verifyToken, async (req, res, next) => {
   req.body.article.author = req.user.userId;
   try {
     let article = await Article.create(req.body.article);
-    article = await Article.findById(article.id).populate('author');
-    res.status(200).json({ article: article.resultArticle(req.user.userId) });
+    let article2 = await Article.findById(article.id).populate('author');
+    res.status(200).json({ article: article2.resultArticle(req.user.userId) });
   } catch (error) {
     next(error);
   }
@@ -41,6 +41,7 @@ router.put('/:slug', auth.verifyToken, async (req, res, next) => {
         .status(400)
         .json({ errors: { body: ['Theres is no article for this search'] } });
     }
+    // console.log(req.user.userId, article.author);
     if (req.user.userId == article.author) {
       article = await Article.findOneAndUpdate(
         { slug },
@@ -61,19 +62,19 @@ router.put('/:slug', auth.verifyToken, async (req, res, next) => {
 // feed articles
 router.get('/feed', auth.verifyToken, async (req, res, next) => {
   let limit = 20,
-    skip = 0;
+    offset = 0;
   if (req.query.limit) {
     limit = req.query.limit;
   }
-  if (req.query.skip) {
-    skip = req.query.skip;
+  if (req.query.offset) {
+    offset = req.query.offset;
   }
   try {
     let result = await User.findById(req.user.userId).distinct('followingList');
     let articles = await Article.find({ author: { $in: result } })
       .populate('author')
       .limit(Number(limit))
-      .skip(Number(skip))
+      .offset(Number(offset))
       .sort({ createdAt: -1 });
     res.status(200).json({
       articles: articles.map((arr) => {
@@ -111,9 +112,9 @@ router.delete('/:slug', auth.verifyToken, async (req, res, next) => {
 });
 //List Articles
 router.get('/', auth.verifyToken, async (req, res, next) => {
-  let id = req.user ? req.user.userId : false;
-  var limit = 20,
-    skip = 0;
+  let id = req.user.userId;
+  var limit = 20;
+  var offset = 0;
   var tags = await Article.find({}).distinct('tagList');
   var authors = await User.find({}).distinct('_id');
 
@@ -125,9 +126,10 @@ router.get('/', auth.verifyToken, async (req, res, next) => {
   if (req.query.limit) {
     limit = req.query.limit;
   }
-  if (req.query.skip) {
-    skip = req.query.skip;
+  if (req.query.offset) {
+    offset = req.query.offset;
   }
+
   if (req.query.author) {
     var authorName = req.query.author;
     var user = await User.findOne({ username: authorName });
@@ -155,7 +157,7 @@ router.get('/', auth.verifyToken, async (req, res, next) => {
       })
         .populate('author')
         .limit(Number(limit))
-        .skip(Number(skip))
+        .offset(Number(offset))
         .sort({ createdAt: -1 });
       res.status(200).json({
         articles: articles.map((arr) => {
@@ -170,7 +172,7 @@ router.get('/', auth.verifyToken, async (req, res, next) => {
       })
         .populate('author')
         .limit(Number(limit))
-        .skip(Number(skip))
+        .offset(Number(offset))
         .sort({ createdAt: -1 });
       res.status(200).json({
         articles: articles.map((arr) => {
@@ -229,8 +231,8 @@ router.get('/:slug/comments', auth.verifyToken, async (req, res, next) => {
       'author'
     );
     res.status(200).json({
-      comments: comments.map((c) => {
-        return c.displayComment(id);
+      comments: comments.map((comment) => {
+        return comment.displayComment(id);
       }),
     });
   } catch (error) {
