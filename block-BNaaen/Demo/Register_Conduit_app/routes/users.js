@@ -45,6 +45,7 @@ router.use(auth.verifyToken);
 
 //Get Current User
 router.get('/', async (req, res, next) => {
+  // console.log(req);
   let id = req.user.userId;
   try {
     let user = await User.findById(id);
@@ -58,10 +59,6 @@ router.get('/', async (req, res, next) => {
 router.put('/', async (req, res, next) => {
   let id = req.user.userId;
   try {
-    let user = await User.findById(id);
-    if (req.body.user.password !== user.password) {
-      req.body.user.password = await bcrypt.hash(req.body.user.password, 10);
-    }
     user = await User.findByIdAndUpdate(id, req.body.user);
     return res.status(201).json({ user: user.displayUser(id) });
   } catch (error) {
