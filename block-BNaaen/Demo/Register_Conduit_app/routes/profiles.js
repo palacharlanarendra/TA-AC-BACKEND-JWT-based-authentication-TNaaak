@@ -2,15 +2,15 @@ let express = require('express');
 let router = express.Router();
 let User = require('../models/usersModel');
 let auth = require('../middleware/auth');
-router.use(auth.verifyToken);
+
 //Get Profile
-router.get('/:username', async (req, res, next) => {
+router.get('/:username', auth.authorizeOpt, async (req, res, next) => {
   let id = req.user.userId;
   let username = req.params.username;
   try {
     let user = await User.findOne({ username });
     if (user) {
-      return res.status(201).json({ user: user.displayUser(id) });
+      return res.status(201).json({ profile: user.displayUser(id) });
     } else {
       return res
         .status(400)
@@ -20,7 +20,7 @@ router.get('/:username', async (req, res, next) => {
     next(error);
   }
 });
-
+router.use(auth.verifyToken);
 //Follow user
 router.post('/:username/follow', async (req, res, next) => {
   let username = req.params.username;
