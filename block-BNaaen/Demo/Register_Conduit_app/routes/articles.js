@@ -5,6 +5,151 @@ let auth = require('../middleware/auth');
 let User = require('../models/usersModel');
 let Comment = require('../models/commentsModel');
 let slugger = require('slugger');
+// feed articles
+router.get('/feed', auth.verifyToken, async (req, res, next) => {
+  let limit = 20,
+    skip = 0;
+  if (req.query.limit) {
+    limit = req.query.limit;
+  }
+  if (req.query.skip) {
+    skip = req.query.skip;
+  }
+  try {
+    let result = await User.findById(req.user.userId).distinct('followingList');
+    console.log(result);
+    let articles = await Article.find({ author: { $in: result } })
+      .populate('author')
+      .limit(Number(limit))
+      .skip(Number(skip))
+      .sort({ createdAt: -1 });
+    console.log(articles);
+    res.status(200).json({
+      articles: articles.map((arr) => {
+        return arr.resultArticle(req.user.userId);
+      }),
+      arcticlesCount: articles.length,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+//List Articles
+router.get('/', auth.authorizeOpt, async (req, res, next) => {
+  let id = req.user ? req.user.userId : false;
+  var limit = 20,
+    skip = 0;
+  var tags = await Article.find({}).distinct('tagList');
+  var authors = await User.find({}).distinct('_id');
+
+  var tagList,
+    author = null;
+  if (req.query.tag) {
+    tagList = req.query.tag;
+  }
+  if (req.query.limit) {
+    limit = req.query.limit;
+  }
+  if (req.query.skip) {
+    skip = req.query.skip;
+  }
+  if (req.query.author) {
+    console.log('1');
+    var authorName = req.query.author;
+    var user = await User.findOne({ username: authorName });
+    if (!user) {
+      return res
+        .status(400)
+        .json({ errors: { body: ['There is no results for this name'] } });
+    }
+    author = user.id;
+  }
+
+  try {
+    if (req.query.favorited) {
+      console.log('2');
+      var favorited = req.query.favorited;
+      var user = await User.findOne({ username: favorited });
+      if (!user) {
+        return res
+          .status(400)
+          .json({ errors: { body: ['There is no results for this name'] } });
+      }
+      var articles = await Article.find({
+        tagList: !tagList ? { $in: tags } : tagList,
+        favoriteList: user.id,
+        author: !author ? { $in: authors } : author,
+      })
+        .populate('author')
+        .limit(Number(limit))
+        .skip(Number(skip))
+        .sort({ createdAt: -1 });
+      res.status(200).json({
+        articles: articles.map((arr) => {
+          return arr.resultArticle(id);
+        }),
+        arcticlesCount: articles.length,
+      });
+    } else if (!req.query.favorited) {
+      console.log('yes');
+      var articles = await Article.find({
+        tagList: !tagList ? { $in: tags } : tagList,
+        author: !author ? { $in: authors } : author,
+      })
+        .populate('author')
+        .limit(Number(limit))
+        .skip(Number(skip))
+        .sort({ createdAt: -1 });
+      res.status(200).json({
+        articles: articles.map((arr) => {
+          return arr.resultArticle(id);
+        }),
+        arcticlesCount: articles.length,
+      });
+    } else {
+      return res
+        .status(400)
+        .json({ errors: { body: ['No results for the search'] } });
+    }
+  } catch (error) {
+    next(error);
+  }
+});
+//update article
+router.put('/:slug/update', auth.verifyToken, async (req, res, next) => {
+  console.log('hey hey hey');
+  let slug = req.params.slug;
+  if (req.body.article.title) {
+    req.body.article.slug = slugger(req.body.article.title, {
+      replacement: '-',
+    });
+  }
+
+  try {
+    let article = await Article.findOne({ slug });
+    if (!article) {
+      return res
+        .status(400)
+        .json({ errors: { body: ['Theres is no article for this search'] } });
+    }
+    if (req.user.userId == article.author) {
+      article = await Article.findOneAndUpdate(
+        { slug },
+        req.body.article
+      ).populate('author');
+      return res
+        .status(200)
+        .json({ article: article.resultArticle(req.user.userId) });
+    } else {
+      return res
+        .status(403)
+        .json({ error: { body: ['Not Authorized to perform this action'] } });
+    }
+  } catch (error) {
+    next(error);
+  }
+});
+
 //Get Article
 router.get('/:slug', async (req, res, next) => {
   let slug = req.params.slug;
@@ -26,6 +171,7 @@ router.post('/', auth.verifyToken, async (req, res, next) => {
     next(error);
   }
 });
+
 //Update Article
 router.put('/:slug', auth.verifyToken, async (req, res, next) => {
   let slug = req.params.slug;
@@ -59,33 +205,6 @@ router.put('/:slug', auth.verifyToken, async (req, res, next) => {
     next(error);
   }
 });
-// feed articles
-router.get('/feed', auth.verifyToken, async (req, res, next) => {
-  let limit = 20,
-    offset = 0;
-  if (req.query.limit) {
-    limit = req.query.limit;
-  }
-  if (req.query.offset) {
-    offset = req.query.offset;
-  }
-  try {
-    let result = await User.findById(req.user.userId).distinct('followingList');
-    let articles = await Article.find({ author: { $in: result } })
-      .populate('author')
-      .limit(Number(limit))
-      .offset(Number(offset))
-      .sort({ createdAt: -1 });
-    res.status(200).json({
-      articles: articles.map((arr) => {
-        return arr.resultArticle(req.user.userId);
-      }),
-      arcticlesCount: articles.length,
-    });
-  } catch (error) {
-    next(error);
-  }
-});
 
 //delete article
 router.delete('/:slug', auth.verifyToken, async (req, res, next) => {
@@ -110,86 +229,6 @@ router.delete('/:slug', auth.verifyToken, async (req, res, next) => {
     next(error);
   }
 });
-//List Articles
-router.get('/', auth.verifyToken, async (req, res, next) => {
-  let id = req.user.userId;
-  var limit = 20;
-  var offset = 0;
-  var tags = await Article.find({}).distinct('tagList');
-  var authors = await User.find({}).distinct('_id');
-
-  var tagList,
-    author = null;
-  if (req.query.tag) {
-    tagList = req.query.tag;
-  }
-  if (req.query.limit) {
-    limit = req.query.limit;
-  }
-  if (req.query.offset) {
-    offset = req.query.offset;
-  }
-
-  if (req.query.author) {
-    var authorName = req.query.author;
-    var user = await User.findOne({ username: authorName });
-    if (!user) {
-      return res
-        .status(400)
-        .json({ errors: { body: ['There is no results for this name'] } });
-    }
-    author = user.id;
-  }
-
-  try {
-    if (req.query.favorited) {
-      var favorited = req.query.favorited;
-      var user = await User.findOne({ username: favorited });
-      if (!user) {
-        return res
-          .status(400)
-          .json({ errors: { body: ['There is no results for this name'] } });
-      }
-      var articles = await Article.find({
-        tagList: !tagList ? { $in: tags } : tagList,
-        favoriteList: user.id,
-        author: !author ? { $in: authors } : author,
-      })
-        .populate('author')
-        .limit(Number(limit))
-        .offset(Number(offset))
-        .sort({ createdAt: -1 });
-      res.status(200).json({
-        articles: articles.map((arr) => {
-          return arr.resultArticle(id);
-        }),
-        arcticlesCount: articles.length,
-      });
-    } else if (!req.query.favorited) {
-      var articles = await Article.find({
-        tagList: !tagList ? { $in: tags } : tagList,
-        author: !author ? { $in: authors } : author,
-      })
-        .populate('author')
-        .limit(Number(limit))
-        .offset(Number(offset))
-        .sort({ createdAt: -1 });
-      res.status(200).json({
-        articles: articles.map((arr) => {
-          return arr.resultArticle(id);
-        }),
-        arcticlesCount: articles.length,
-      });
-    } else {
-      return res
-        .status(400)
-        .json({ errors: { body: ['No results for the search'] } });
-    }
-  } catch (error) {
-    next(error);
-  }
-});
-
 //Add Comments to an Article
 router.post('/:slug/comments', auth.verifyToken, async (req, res, next) => {
   let slug = req.params.slug;
@@ -217,7 +256,7 @@ router.post('/:slug/comments', auth.verifyToken, async (req, res, next) => {
 });
 
 //Get Comments from an Article
-router.get('/:slug/comments', auth.verifyToken, async (req, res, next) => {
+router.get('/:slug/comments', auth.authorizeOpt, async (req, res, next) => {
   let slug = req.params.slug;
   let id = req.user ? req.user.userId : false;
   try {

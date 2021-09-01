@@ -15,10 +15,10 @@ mongoose.connect(
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
-var profileRouter = require('./routes/profile');
+var profileRouter = require('./routes/profiles');
 var articleRouter = require('./routes/articles');
-var tagRouter = require('./routes/tagList');
-
+var tagRouter = require('./routes/tags');
+var userRouter = require('./routes/user');
 var app = express();
 
 // view engine setup
@@ -32,6 +32,7 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/api', indexRouter);
+app.use('/api/user', userRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/profiles', profileRouter);
 app.use('/api/articles', articleRouter);

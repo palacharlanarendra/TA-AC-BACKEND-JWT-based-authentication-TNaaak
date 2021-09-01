@@ -5,7 +5,7 @@ var auth = require('../middleware/auth');
 var bcrypt = require('bcrypt');
 
 //Registration
-router.post('/register', async (req, res, next) => {
+router.post('/', async (req, res, next) => {
   req.body.user.following = false;
   try {
     var user = await User.create(req.body.user);
@@ -15,7 +15,6 @@ router.post('/register', async (req, res, next) => {
     next(error);
   }
 });
-
 //Authentication
 router.post('/login', async (req, res, next) => {
   var { email, password } = req.body.user;
@@ -36,31 +35,6 @@ router.post('/login', async (req, res, next) => {
 
     var token = await user.signToken();
     return res.status(201).json({ user: user.userJSON(token) });
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.use(auth.verifyToken);
-
-//Get Current User
-router.get('/', async (req, res, next) => {
-  // console.log(req);
-  let id = req.user.userId;
-  try {
-    let user = await User.findById(id);
-    res.status(200).json({ user: user.displayUser(id) });
-  } catch (error) {
-    next(error);
-  }
-});
-
-//Update User
-router.put('/', async (req, res, next) => {
-  let id = req.user.userId;
-  try {
-    user = await User.findByIdAndUpdate(id, req.body.user);
-    return res.status(201).json({ user: user.displayUser(id) });
   } catch (error) {
     next(error);
   }
